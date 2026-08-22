@@ -8,6 +8,7 @@ import static edu.wpi.first.units.Units.Volts;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.configs.MotorOutputConfigs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.EmptyAnimation;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
@@ -50,14 +51,14 @@ public class Elevator extends SubsystemBase {
     // WPILib Motion Profiler
     private final TrapezoidProfile profile = new TrapezoidProfile(constraints);
     // Target goal setpoint and current calculated profile state.
-    private TrapezoidProfile.State goal = new TrapezoidProfile.State(0, 0);
+    // private TrapezoidProfile.State goal = new TrapezoidProfile.State(0, 0);
     private TrapezoidProfile.State setpoint = new TrapezoidProfile.State(0, 0);
 
     // Feedback and feedforward controllers driving the elevator, following the
     // motion profile
     // setpoints.
-    private final PIDController pid = new PIDController(4, 0.0, 0.0);
-    private final ElevatorFeedforward feedforward = new ElevatorFeedforward(0.05, 0.28, 4.5, 3);
+    private final PIDController pid = new PIDController(5.5, 0.0, 0.0);
+    private final ElevatorFeedforward feedforward = new ElevatorFeedforward(0.05, 0.28, 4.8, 3.5);
     // ks = 0.138
     // kg = 0.20163
 
@@ -97,13 +98,15 @@ public class Elevator extends SubsystemBase {
 
         // Reset the encoder position to 0 at the start of autonomous
         topElevator.setPosition(0.0);
-        goal = new TrapezoidProfile.State(0.4, 0.0);
     }
 
     // Helper function to compute elevator vertical position from
     // the rotation position of the motors.
     private Distance curPosition() {
-        return Inches.of(topElevator.getPosition().getValueAsDouble());
+        // How to compute the elevator vertical position from the rotation position of
+        // the motors:
+        // https://docs.google.com/presentation/d/1rl5EaBWSbhddaBKi7KndIaIQq9RJXTfchpoNX1QDWg0/edit?slide=id.p#slide=id.p
+        return Inches.of(topElevator.getPosition().getValueAsDouble() * 0.94);
     }
 
     // Implements a simple auto procedure with three fixed voltage/duration stages
@@ -133,6 +136,15 @@ public class Elevator extends SubsystemBase {
     // profile.
     // Must be called from Robot.autonomousPeriodic().
     public void autonomousProfiledPeriodic() {
+        double elapsedTime = autoTimer.get();
+        TrapezoidProfile.State goal;
+        if (elapsedTime < 4.0) {
+            // Set a target at 0.40m (40 cm).
+            goal = new TrapezoidProfile.State(0.4, 0.0);
+        } else {
+            // Set target back at the bottom.
+            goal = new TrapezoidProfile.State(0.0, 0.0);
+        }
         // 1. Calculate the next profile state step (dT is typically 0.02s for periodic)
         setpoint = profile.calculate(0.02, setpoint, goal);
 

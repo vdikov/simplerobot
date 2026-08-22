@@ -38,8 +38,8 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    elevator.autonomousVoltagePeriodic();
-    // elevator.autonomousProfiledPeriodic();
+    // elevator.autonomousVoltagePeriodic();
+    elevator.autonomousProfiledPeriodic();
   }
 
   /** This function is called once when teleop is enabled. */
