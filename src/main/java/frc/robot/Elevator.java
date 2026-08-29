@@ -134,6 +134,10 @@ public class Elevator extends SubsystemBase {
 
     // Implements an auto procedure lifting the elevator according to a motion
     // profile.
+    //
+    // Implements the block diagram shown in
+    // https://docs.wpilib.org/en/stable/docs/software/advanced-controls/introduction/tuning-elevator.html#elevator-model-description
+    //
     // Must be called from Robot.autonomousPeriodic().
     public void autonomousProfiledPeriodic() {
         double elapsedTime = autoTimer.get();
