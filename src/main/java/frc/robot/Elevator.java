@@ -56,8 +56,10 @@ public class Elevator extends SubsystemBase {
     // Feedback and feedforward controllers driving the elevator, following the
     // motion profile
     // setpoints.
-    private final PIDController pid = new PIDController(5.5, 0.0, 0.0);
-    private final ElevatorFeedforward feedforward = new ElevatorFeedforward(0.05, 0.28, 4.8, 3.5);
+    private final PIDController pid = new PIDController(10, 0.0, 2);
+    private final ElevatorFeedforward feedforward = new ElevatorFeedforward(0.05, 0.28, 4.8, 4.0);
+    // private final ElevatorFeedforward feedforward = new ElevatorFeedforward(0.13, 0.20, 4.8, 4.0);
+    // Values Stefan found with System Identification routine.
     // ks = 0.138
     // kg = 0.20163
 
@@ -140,16 +142,21 @@ public class Elevator extends SubsystemBase {
     // Must be called from Robot.autonomousPeriodic().
     public void autonomousProfiledPeriodic() {
         double elapsedTime = autoTimer.get();
-        TrapezoidProfile.State goal;
+        double targetPosition = 0.0;
         if (elapsedTime < 4.0) {
-            // Set a target at 0.40m (40 cm).
-            goal = new TrapezoidProfile.State(0.4, 0.0);
-        } else {
+            targetPosition = 0.4;  // 40cm - Top
+        } else if (elapsedTime < 6.0) {
+            targetPosition = 0.2;  // 20cm - Midway
+        } else if (elapsedTime < 8.0) {
+            targetPosition = 0.0;  // 0cm - Bottom
             // Set target back at the bottom.
-            goal = new TrapezoidProfile.State(0.0, 0.0);
+        } else if (elapsedTime < 10.0) {
+            targetPosition = 0.4;  // 40cm - Top
+        } else {
+            targetPosition = 0.0;  // 0cm - Bottom
         }
         // 1. Calculate the next profile state step (dT is typically 0.02s for periodic)
-        setpoint = profile.calculate(0.02, setpoint, goal);
+        setpoint = profile.calculate(0.02, setpoint, new TrapezoidProfile.State(targetPosition, 0.0));
 
         // 2. Get current position reading from the motor (in rotations)
         // Since for this mechanism, one rotation ~ 1 inch, we can use these as inches.
