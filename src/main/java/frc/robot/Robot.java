@@ -18,8 +18,7 @@ public class Robot extends TimedRobot {
 
   /**
    * This function is run when the robot is first started up and should be used
-   * for any
-   * initialization code.
+   * for any initialization code.
    */
   public Robot() {
   }
@@ -36,7 +35,6 @@ public class Robot extends TimedRobot {
 
   @Override
   public void robotPeriodic() {
-
   }
 
   @Override
