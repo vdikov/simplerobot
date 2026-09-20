@@ -57,6 +57,5 @@
     "edu.wpi.first.math.**.proto.*",
     "edu.wpi.first.math.**.struct.*",
   ],
-  "java.dependency.enableDependencyCheckup": false,
-  "workbench.colorTheme": "Visual Studio Light"
+  "java.dependency.enableDependencyCheckup": false
 }
