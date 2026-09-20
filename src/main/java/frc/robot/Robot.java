@@ -24,6 +24,16 @@ public class Robot extends TimedRobot {
   public Robot() {
   }
 
+  /** This function is called once when the robot is first started up. */
+  @Override
+  public void simulationInit() {
+  }
+
+  /** This function is called periodically whilst in simulation. */
+  @Override
+  public void simulationPeriodic() {
+  }
+
   @Override
   public void robotPeriodic() {
 
@@ -37,7 +47,11 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
+    // This is the method where the elevator is controlled by a motion profile.
+    // It performs a pre-recorded sequence of movements.
     elevator.autonomousProfiledPeriodic();
+
+    // This is a simpler method where the elevator is controlled by a simple voltage routine.
     // elevator.autonomousVoltagePeriodic();
   }
 
@@ -61,15 +75,7 @@ public class Robot extends TimedRobot {
   public void testPeriodic() {
   }
 
-  /** This function is called once when the robot is first started up. */
-  @Override
-  public void simulationInit() {
-  }
 
-  /** This function is called periodically whilst in simulation. */
-  @Override
-  public void simulationPeriodic() {
-  }
 
   /** This function is called once when the robot is disabled. */
   @Override
