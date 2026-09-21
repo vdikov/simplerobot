@@ -5,6 +5,7 @@ import static edu.wpi.first.units.Units.Inches;
 import static edu.wpi.first.units.Units.Meters;
 import static edu.wpi.first.units.Units.Volts;
 
+import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.configs.MotorOutputConfigs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
@@ -30,8 +31,9 @@ public class Elevator extends SubsystemBase {
     private static int TOP_ELEVATOR_CAN_ID = 16;
     private static int BOTTOM_ELEVATOR_CAN_ID = 17;
 
-    private final TalonFX topElevator = new TalonFX(TOP_ELEVATOR_CAN_ID, RIO_CAN_LOOP_NAME);
-    private final TalonFX bottomElevator = new TalonFX(BOTTOM_ELEVATOR_CAN_ID, RIO_CAN_LOOP_NAME);
+    private final CANBus bus = new CANBus(RIO_CAN_LOOP_NAME);
+    private final TalonFX topElevator = new TalonFX(TOP_ELEVATOR_CAN_ID, bus);
+    private final TalonFX bottomElevator = new TalonFX(BOTTOM_ELEVATOR_CAN_ID, bus);
 
     private VoltageOut elevatorVoltage = new VoltageOut(0.0);
 
@@ -58,7 +60,8 @@ public class Elevator extends SubsystemBase {
     // setpoints.
     private final PIDController pid = new PIDController(10, 0.0, 2);
     private final ElevatorFeedforward feedforward = new ElevatorFeedforward(0.05, 0.28, 4.8, 4.0);
-    // private final ElevatorFeedforward feedforward = new ElevatorFeedforward(0.13, 0.20, 4.8, 4.0);
+    // private final ElevatorFeedforward feedforward = new ElevatorFeedforward(0.13,
+    // 0.20, 4.8, 4.0);
     // Values Stefan found with System Identification routine.
     // ks = 0.138
     // kg = 0.20163
@@ -144,16 +147,16 @@ public class Elevator extends SubsystemBase {
         double elapsedTime = autoTimer.get();
         double targetPosition = 0.0;
         if (elapsedTime < 4.0) {
-            targetPosition = 0.4;  // 40cm - Top
+            targetPosition = 0.4; // 40cm - Top
         } else if (elapsedTime < 6.0) {
-            targetPosition = 0.2;  // 20cm - Midway
+            targetPosition = 0.2; // 20cm - Midway
         } else if (elapsedTime < 8.0) {
-            targetPosition = 0.0;  // 0cm - Bottom
+            targetPosition = 0.0; // 0cm - Bottom
             // Set target back at the bottom.
         } else if (elapsedTime < 10.0) {
-            targetPosition = 0.4;  // 40cm - Top
+            targetPosition = 0.4; // 40cm - Top
         } else {
-            targetPosition = 0.0;  // 0cm - Bottom
+            targetPosition = 0.0; // 0cm - Bottom
         }
         // 1. Calculate the next profile state step (dT is typically 0.02s for periodic)
         setpoint = profile.calculate(0.02, setpoint, new TrapezoidProfile.State(targetPosition, 0.0));
