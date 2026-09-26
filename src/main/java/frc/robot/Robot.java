@@ -14,7 +14,8 @@ import edu.wpi.first.wpilibj.TimedRobot;
  * the Main.java file in the project.
  */
 public class Robot extends TimedRobot {
-  private final Elevator elevator = new Elevator(NetworkTableInstance.getDefault());
+  // private final Elevator elevator = new Elevator(NetworkTableInstance.getDefault());
+  private final ElevatorWithMotionMagic elevatorWithMotionMagic = new ElevatorWithMotionMagic(NetworkTableInstance.getDefault());
 
   /**
    * This function is run when the robot is first started up and should be used
@@ -29,7 +30,7 @@ public class Robot extends TimedRobot {
 
   @Override
   public void autonomousInit() {
-    elevator.autonomousInit();
+    // elevator.autonomousInit();
   }
 
   /** This function is called periodically during autonomous. */
@@ -37,7 +38,7 @@ public class Robot extends TimedRobot {
   public void autonomousPeriodic() {
     // This is the method where the elevator is controlled by a motion profile.
     // It performs a pre-recorded sequence of movements.
-    elevator.autonomousProfiledPeriodic();
+    // elevator.autonomousProfiledPeriodic();
 
     // This is a simpler method where the elevator is controlled by a simple voltage routine.
     // elevator.autonomousVoltagePeriodic();
@@ -61,6 +62,7 @@ public class Robot extends TimedRobot {
   /** This function is called periodically whilst in simulation. */
   @Override
   public void simulationPeriodic() {
+    elevatorWithMotionMagic.simulationPeriodic();
   }
 
   /** This function is called once when test mode is enabled. */
