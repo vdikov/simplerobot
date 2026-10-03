@@ -31,6 +31,7 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousInit() {
     // elevator.autonomousInit();
+    elevatorWithMotionMagic.autonomousInit();
   }
 
   /** This function is called periodically during autonomous. */
@@ -42,6 +43,9 @@ public class Robot extends TimedRobot {
 
     // This is a simpler method where the elevator is controlled by a simple voltage routine.
     // elevator.autonomousVoltagePeriodic();
+
+    // This is the method where the elevator is controlled by a motion magic routine.
+    elevatorWithMotionMagic.autonomousProfiledPeriodic();
   }
 
   /** This function is called once when teleop is enabled. */
