@@ -4,8 +4,11 @@
 
 package frc.robot;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
 /**
  * The methods in this class are called automatically corresponding to each
@@ -14,78 +17,91 @@ import edu.wpi.first.wpilibj.TimedRobot;
  * the Main.java file in the project.
  */
 public class Robot extends TimedRobot {
-  // private final Elevator elevator = new Elevator(NetworkTableInstance.getDefault());
-  private final ElevatorWithMotionMagic elevatorWithMotionMagic = new ElevatorWithMotionMagic(NetworkTableInstance.getDefault());
+    // private final Elevator elevator = new
+    // Elevator(NetworkTableInstance.getDefault());
+    private final ElevatorWithMotionMagic elevatorWithMotionMagic = new ElevatorWithMotionMagic(
+            NetworkTableInstance.getDefault());
+    private final CommandXboxController controller = new CommandXboxController(0);
 
-  /**
-   * This function is run when the robot is first started up and should be used
-   * for any initialization code.
-   */
-  public Robot() {
-  }
+    /**
+     * This function is run when the robot is first started up and should be used
+     * for any initialization code.
+     */
+    public Robot() {
+        elevatorWithMotionMagic.setDefaultCommand(
+                elevatorWithMotionMagic.runManual(() -> MathUtil.applyDeadband(-controller.getLeftY(), 0.1)));
+    }
 
-  @Override
-  public void robotPeriodic() {
-  }
+    @Override
+    public void robotPeriodic() {
+        // Runs the Scheduler. This is responsible for polling buttons, adding
+        // newly-scheduled commands, running already-scheduled commands, removing
+        // finished or interrupted commands, and running subsystem periodic() methods.
+        // This must be called from the robot's periodic block in order for anything in
+        // the Command-based framework to work.
+        CommandScheduler.getInstance().run();
+    }
 
-  @Override
-  public void autonomousInit() {
-    // elevator.autonomousInit();
-    elevatorWithMotionMagic.autonomousInit();
-  }
+    @Override
+    public void autonomousInit() {
+        // elevator.autonomousInit();
+        elevatorWithMotionMagic.autonomousInit();
+    }
 
-  /** This function is called periodically during autonomous. */
-  @Override
-  public void autonomousPeriodic() {
-    // This is the method where the elevator is controlled by a motion profile.
-    // It performs a pre-recorded sequence of movements.
-    // elevator.autonomousProfiledPeriodic();
+    /** This function is called periodically during autonomous. */
+    @Override
+    public void autonomousPeriodic() {
+        // This is the method where the elevator is controlled by a motion profile.
+        // It performs a pre-recorded sequence of movements.
+        // elevator.autonomousProfiledPeriodic();
 
-    // This is a simpler method where the elevator is controlled by a simple voltage routine.
-    // elevator.autonomousVoltagePeriodic();
+        // This is a simpler method where the elevator is controlled by a simple voltage
+        // routine.
+        // elevator.autonomousVoltagePeriodic();
 
-    // This is the method where the elevator is controlled by a motion magic routine.
-    elevatorWithMotionMagic.autonomousProfiledPeriodic();
-  }
+        // This is the method where the elevator is controlled by a motion magic
+        // routine.
+        elevatorWithMotionMagic.autonomousProfiledPeriodic();
+    }
 
-  /** This function is called once when teleop is enabled. */
-  @Override
-  public void teleopInit() {
-  }
+    /** This function is called once when teleop is enabled. */
+    @Override
+    public void teleopInit() {
+    }
 
-  /** This function is called periodically during operator control. */
-  @Override
-  public void teleopPeriodic() {
-  }
+    /** This function is called periodically during operator control. */
+    @Override
+    public void teleopPeriodic() {
+    }
 
-  /** This function is called once when the robot is first started up. */
-  @Override
-  public void simulationInit() {
-  }
+    /** This function is called once when the robot is first started up. */
+    @Override
+    public void simulationInit() {
+    }
 
-  /** This function is called periodically whilst in simulation. */
-  @Override
-  public void simulationPeriodic() {
-    elevatorWithMotionMagic.simulationPeriodic();
-  }
+    /** This function is called periodically whilst in simulation. */
+    @Override
+    public void simulationPeriodic() {
+        // elevatorWithMotionMagic.simulationPeriodic();
+    }
 
-  /** This function is called once when test mode is enabled. */
-  @Override
-  public void testInit() {
-  }
+    /** This function is called once when test mode is enabled. */
+    @Override
+    public void testInit() {
+    }
 
-  /** This function is called periodically during test mode. */
-  @Override
-  public void testPeriodic() {
-  }
+    /** This function is called periodically during test mode. */
+    @Override
+    public void testPeriodic() {
+    }
 
-  /** This function is called once when the robot is disabled. */
-  @Override
-  public void disabledInit() {
-  }
+    /** This function is called once when the robot is disabled. */
+    @Override
+    public void disabledInit() {
+    }
 
-  /** This function is called periodically when disabled. */
-  @Override
-  public void disabledPeriodic() {
-  }
+    /** This function is called periodically when disabled. */
+    @Override
+    public void disabledPeriodic() {
+    }
 }

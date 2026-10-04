@@ -11,6 +11,7 @@ import static edu.wpi.first.units.Units.Volts;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.function.DoubleSupplier;
 
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.StatusSignal;
@@ -19,15 +20,19 @@ import com.ctre.phoenix6.configs.MotionMagicConfigs;
 import com.ctre.phoenix6.configs.MotorOutputConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.ControlModeValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.sim.TalonFXSimState;
 
 import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.networktables.BooleanPublisher;
 import edu.wpi.first.networktables.DoublePublisher;
+import edu.wpi.first.networktables.IntegerPublisher;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
@@ -35,6 +40,7 @@ import edu.wpi.first.units.measure.Mass;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.simulation.ElevatorSim;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class ElevatorWithMotionMagic extends SubsystemBase {
@@ -45,7 +51,10 @@ public class ElevatorWithMotionMagic extends SubsystemBase {
     private final CANBus bus = new CANBus(RIO_CAN_LOOP_NAME);
     private final TalonFX topMotor = new TalonFX(TOP_ELEVATOR_CAN_ID, bus);
     private final TalonFX bottomMotor = new TalonFX(BOTTOM_ELEVATOR_CAN_ID, bus);
-    private final MotionMagicVoltage elevatorPosition = new MotionMagicVoltage(0);
+    // Reusable control request for Motion Magic position control.
+    private final MotionMagicVoltage elevatorPositionRequest = new MotionMagicVoltage(0);
+    // Reusable control request for duty cycle output.
+    private final DutyCycleOut elevatorDutyCycleRequest = new DutyCycleOut(0);
 
     // Voltage based routine timer. Used to determine when to change from one
     // phase of the routine to another.
@@ -69,6 +78,7 @@ public class ElevatorWithMotionMagic extends SubsystemBase {
     private final DoublePublisher profiledSetPointMetersPublisher;
     private final DoublePublisher currentPositionMetersPublisher;
     private final DoublePublisher voltagePublisher;
+    private final BooleanPublisher isNewSetpointPublisher;
 
     public ElevatorWithMotionMagic(NetworkTableInstance nt) {
         // Configure the motors.
@@ -118,6 +128,7 @@ public class ElevatorWithMotionMagic extends SubsystemBase {
         profiledSetPointMetersPublisher = elevatorTable.getDoubleTopic("profiledSetPointMeters").publish();
         currentPositionMetersPublisher = elevatorTable.getDoubleTopic("currentPositionMeters").publish();
         voltagePublisher = elevatorTable.getDoubleTopic("voltage").publish();
+        isNewSetpointPublisher = elevatorTable.getBooleanTopic("isNewSetpoint").publish();
     }
 
     /**
@@ -179,8 +190,40 @@ public class ElevatorWithMotionMagic extends SubsystemBase {
         autoTimer.reset();
         autoTimer.start();
 
-        // Reset the encoder position to 0 at the start of autonomous
+        // Reset the encoder position to 0 at the start of autonomous.
+        // That assumes that the elevator is physically at the bottom of its travel at
+        // the start of autonomous.
         topMotor.setPosition(0.0);
+    }
+
+    /**
+     * Drives the elevator using open-loop duty cycle output (-1.0 to 1.0).
+     * 
+     * @param output Normalized duty cycle output
+     */
+    private void setDutyCycle(double output) {
+        ControlModeValue controlMode = topMotor.getControlMode().getValue();
+        if (controlMode == ControlModeValue.MotionMagicVoltageFOC && output == 0.0)
+            return; // Don't override Motion Magic control with 0.0 output.
+
+        output *= 0.10; // cap the output of full power to avoid overspeeding the elevator.
+        if (output > 0.0) {
+            topMotor.setControl(elevatorDutyCycleRequest.withOutput(output));
+        } else {
+            // Negative values are driving the motor down;
+            // reduce the output to 80% to avoid overspeeding the elevator downwards.
+            topMotor.setControl(elevatorDutyCycleRequest.withOutput(0.8 * output));
+        }
+    }
+
+    /**
+     * Sets the elevator desired position using Motion Magic control.
+     * 
+     * @param position The desired elevator position in meters.
+     */
+    private void setPositionSetpoint(Distance position) {
+        topMotor.setControl(elevatorPositionRequest
+                .withPosition(Rotations.of(linearTravelToMotorRotations(position.in(Meters)))));
     }
 
     /**
@@ -202,24 +245,46 @@ public class ElevatorWithMotionMagic extends SubsystemBase {
 
     public void autonomousProfiledPeriodic() {
         double elapsedTime = autoTimer.get();
+        boolean isNewSetpoint = false;
         for (var setpoint : autoRoutine) {
             if (timerWatermark <= setpoint.time() && setpoint.time() < elapsedTime) {
                 // Update the setpoint to the next one in the routine.
-                topMotor.setControl(elevatorPosition
-                        .withPosition(Rotations.of(linearTravelToMotorRotations(setpoint.position().in(Meters)))));
+                setPositionSetpoint(setpoint.position());
+                isNewSetpoint = true;
                 break;
             }
         }
+        isNewSetpointPublisher.set(isNewSetpoint);
         timerWatermark = elapsedTime;
+    }
 
-        // 2. Refresh the signal to get the latest data from the CAN bus
+    @Override
+    public void periodic() {
+        // Refresh motor signals to get the latest data from the CAN bus
         topMotorSetpointRotationsSignal.refresh();
         topMotorPositionRotationsSignal.refresh();
 
+        // Update the NetworkTables values for the current setpoint and position in
+        // meters.
         profiledSetPointMetersPublisher
                 .set(motorRotationsToLinearTravelMeters(topMotorSetpointRotationsSignal.getValueAsDouble()));
         currentPositionMetersPublisher
                 .set(motorRotationsToLinearTravelMeters(topMotorPositionRotationsSignal.getValueAsDouble()));
         voltagePublisher.set(topMotor.getMotorVoltage().getValueAsDouble());
+    }
+
+    /**
+     * Creates a command to run manual open-loop control from a supplier (e.g.
+     * joystick axis).
+     * Stops the motor when interrupted.
+     *
+     * @param speedSupplier Supplier providing values between -1.0 (up) and 1.0
+     *                      (down)
+     * @return The default command
+     */
+    public Command runManual(DoubleSupplier speedSupplier) {
+        return run(() -> setDutyCycle(speedSupplier.getAsDouble()))
+                .finallyDo(() -> setDutyCycle(0.0))
+                .withName("ElevatorManualDutyCycle");
     }
 }
