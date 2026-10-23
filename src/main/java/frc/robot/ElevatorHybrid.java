@@ -4,11 +4,14 @@ import com.ctre.phoenix6.configs.MotorOutputConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
+import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -51,9 +54,18 @@ public class ElevatorHybrid extends SubsystemBase {
                 new MotorOutputConfigs()
                     .withInverted(InvertedValue.Clockwise_Positive));
 
+    private PositionVoltage motorPositionalControl = new PositionVoltage(0);
+
     /* These are used to put data on NetworkTables so we can read the data from AdvantageScope. */
-    private final DoublePublisher profiledSetPointMetersPublisher;
-    private final DoublePublisher currentPositionMetersPublisher;
+    private final DoublePublisher profiledSetpointRotationsPublisher;
+    private final DoublePublisher currentPositionRotationsPublisher;
+
+    // The constants that define the motion profile.
+    private final TrapezoidProfile.Constraints motionProfilingConstants = new TrapezoidProfile.Constraints(3, 3);
+    // The motion profile itself; this is what we use to actually run calculations for the motion profile
+    private final TrapezoidProfile motionProfile;
+    // This is the current "next step" of the motion profile that gets calculated. The motor tries to reach this position, though it changes every loop.
+    private TrapezoidProfile.State motionProfileSetpoint = new TrapezoidProfile.State(0,0);
 
     public ElevatorHybrid(NetworkTableInstance nt) {
         /* Apply the settings to the motors. */
@@ -63,19 +75,21 @@ public class ElevatorHybrid extends SubsystemBase {
         /*
         Set up the Publishers to publish to a networktable (i.e. a folder where it will be published).
         */
-        profiledSetPointMetersPublisher = nt.getDoubleTopic("/Elevator/Motion Profile Setpoint (meters)").publish();
-        currentPositionMetersPublisher = nt.getDoubleTopic("/Elevator/Current Elevator Position (meters)").publish();
+        profiledSetpointRotationsPublisher = nt.getDoubleTopic("/Elevator/Motion Profile Setpoint (rotations)").publish();
+        currentPositionRotationsPublisher = nt.getDoubleTopic("/Elevator/Current Elevator Position (rotations)").publish();
 
         /* Make the bottom motor spin in the same direction and copy the output of the top motor. */
         bottomMotor.setControl(new Follower(TOP_ELEVATOR_CAN_ID, MotorAlignmentValue.Aligned));
+
+        motionProfile = new TrapezoidProfile(motionProfilingConstants);
 
     }
 
     /**
      * @return The current height of the elevator calculated from the current motor positions.
      */
-    private Distance currentElevatorPosition() {
-        return Inches.of(topMotor.getPosition().getValue().in(Rotations) * ELEVATOR_TRAVEL_INCHES_PER_MOTOR_ROTATION);
+    private Angle turnElevatorHeightToMotorRotations(Distance elevatorHeight) {
+        return Rotations.of(elevatorHeight.in(Inches) / ELEVATOR_TRAVEL_INCHES_PER_MOTOR_ROTATION);
     }
 
     /**
@@ -85,9 +99,18 @@ public class ElevatorHybrid extends SubsystemBase {
      */
     @Override
     public void periodic() {
-        // TODO: Implement the motion profiling routine.
-        // TODO: Also test having a boolean that stops the routine from running if the motor is already close to the setpoint.
+        motionProfilePeriodic();
+    }
+
+    public void motionProfilePeriodic() {
+        motionProfileSetpoint = motionProfile.calculate(0.02, motionProfileSetpoint, new TrapezoidProfile.State(turnElevatorHeightToMotorRotations(elevatorHeightSetpoint).in(Rotations), 0.0));
+
+        profiledSetpointRotationsPublisher.accept(motionProfileSetpoint.position);
+        currentPositionRotationsPublisher.accept(topMotor.getRotorPosition().getValueAsDouble());
+
+        topMotor.setControl(motorPositionalControl.withPosition(Rotations.of(motionProfileSetpoint.position)));
 
 
     }
+
 }
